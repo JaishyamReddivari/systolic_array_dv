@@ -1,358 +1,311 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 760" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
 
   <style>
     .title { font-size: 18px; font-weight: 700; fill: #111; }
-    .label { font-size: 12px; fill: #333; }
     .small { font-size: 10px; fill: #555; }
     .pe-text { font-size: 9px; fill: #fff; text-anchor: middle; }
     .pe-coord { font-size: 8px; fill: #cbd5e1; text-anchor: middle; }
     .block { fill: #1e293b; stroke: #0f172a; stroke-width: 1; }
     .iface { fill: #fef3c7; stroke: #b45309; stroke-width: 1.5; }
     .iface-text { font-size: 11px; fill: #78350f; font-weight: 600; text-anchor: middle; }
-    .arrow { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
-    .arrow-b { stroke: #0369a1; stroke-width: 2; fill: none; marker-end: url(#arrow-b); }
-    .arrow-c { stroke: #15803d; stroke-width: 2; fill: none; marker-end: url(#arrow-c); }
-    .arrow-a { stroke: #b45309; stroke-width: 2; fill: none; marker-end: url(#arrow-a); }
     .ctrl { fill: #ede9fe; stroke: #6d28d9; stroke-width: 1.5; }
     .ctrl-text { font-size: 11px; fill: #5b21b6; font-weight: 600; text-anchor: middle; }
     .legend-box { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1; }
+    .arrow   { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .arrow-b { stroke: #0369a1; stroke-width: 2;   fill: none; marker-end: url(#arrow-b); }
+    .arrow-c { stroke: #15803d; stroke-width: 2;   fill: none; marker-end: url(#arrow-c); }
+    .arrow-a { stroke: #b45309; stroke-width: 2;   fill: none; marker-end: url(#arrow-a); }
   </style>
 
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
-    </marker>
-    <marker id="arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#0369a1"/>
-    </marker>
-    <marker id="arrow-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#15803d"/>
-    </marker>
-    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
-    </marker>
+    <marker id="arrow"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <marker id="arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0369a1"/></marker>
+    <marker id="arrow-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
   </defs>
 
-  <!-- Title -->
-  <text x="500" y="28" text-anchor="middle" class="title">8×8 INT8 Weight-Stationary Systolic Array — Block Diagram</text>
-  <text x="500" y="46" text-anchor="middle" class="small">Rev A — `systolic_array_dv`</text>
+  <text x="520" y="28" text-anchor="middle" class="title">8x8 INT8 Weight-Stationary Systolic Array — Block Diagram</text>
+  <text x="520" y="46" text-anchor="middle" class="small">Rev A — systolic_array_dv   |   B flows down, partial sums flow right, C exits right edge</text>
 
-  <!-- AXI-Lite control interface (top left) -->
-  <rect x="40" y="80" width="160" height="60" rx="4" class="iface"/>
-  <text x="120" y="105" class="iface-text">s_axi_lite</text>
-  <text x="120" y="122" class="iface-text" font-size="10">CTRL / STATUS / IRQ</text>
+  <!-- Top interfaces -->
+  <rect x="40" y="80" width="150" height="56" rx="4" class="iface"/>
+  <text x="115" y="104" class="iface-text">s_axi_lite</text>
+  <text x="115" y="120" class="iface-text" font-size="10">CTRL / STATUS / IRQ</text>
 
-  <!-- A input interface (top) -->
-  <rect x="240" y="80" width="160" height="60" rx="4" class="iface"/>
-  <text x="320" y="105" class="iface-text">s_axis_a</text>
-  <text x="320" y="122" class="iface-text" font-size="10">Weights — 64b @ 8 beats</text>
+  <rect x="240" y="80" width="150" height="56" rx="4" class="iface"/>
+  <text x="315" y="104" class="iface-text">s_axis_a</text>
+  <text x="315" y="120" class="iface-text" font-size="10">Weights (preloaded)</text>
 
-  <!-- B input interface (top) -->
-  <rect x="440" y="80" width="160" height="60" rx="4" class="iface"/>
-  <text x="520" y="105" class="iface-text">s_axis_b</text>
-  <text x="520" y="122" class="iface-text" font-size="10">Activations — 64b @ 8 beats</text>
+  <rect x="430" y="80" width="170" height="56" rx="4" class="iface"/>
+  <text x="515" y="104" class="iface-text">s_axis_b</text>
+  <text x="515" y="120" class="iface-text" font-size="10">Activations — 64b x 8 beats</text>
 
-  <!-- Controller FSM (right) -->
-  <rect x="780" y="80" width="180" height="120" rx="4" class="ctrl"/>
-  <text x="870" y="105" class="ctrl-text">Controller FSM</text>
-  <text x="870" y="125" class="small" text-anchor="middle">IDLE → LOAD → COMPUTE</text>
-  <text x="870" y="140" class="small" text-anchor="middle">    → DRAIN → IDLE</text>
-  <text x="870" y="160" class="small" text-anchor="middle">• Skew sequencer for B</text>
-  <text x="870" y="174" class="small" text-anchor="middle">• Weight-load shift control</text>
-  <text x="870" y="188" class="small" text-anchor="middle">• tile_cnt, busy, done</text>
+  <!-- Controller -->
+  <rect x="820" y="80" width="180" height="120" rx="4" class="ctrl"/>
+  <text x="910" y="104" class="ctrl-text">Controller FSM</text>
+  <text x="910" y="124" class="small" text-anchor="middle">IDLE -&gt; LOAD -&gt; COMPUTE</text>
+  <text x="910" y="138" class="small" text-anchor="middle">    -&gt; DRAIN -&gt; IDLE</text>
+  <text x="910" y="158" class="small" text-anchor="middle">• B input skew sequencer</text>
+  <text x="910" y="172" class="small" text-anchor="middle">• C output de-skew</text>
+  <text x="910" y="186" class="small" text-anchor="middle">• tile_cnt, busy, done</text>
 
-  <!-- Connection: AXI-Lite to FSM -->
-  <line x1="200" y1="110" x2="780" y2="120" class="arrow"/>
+  <line x1="190" y1="108" x2="820" y2="120" class="arrow"/>
 
-  <!-- A-buffer (weight buffer) -->
-  <rect x="240" y="170" width="160" height="40" rx="3" class="block"/>
-  <text x="320" y="195" text-anchor="middle" font-size="11" fill="#fff">Weight Load Buffer</text>
+  <!-- Weight load + activation buffer -->
+  <rect x="240" y="166" width="150" height="38" rx="3" class="block"/>
+  <text x="315" y="189" text-anchor="middle" font-size="11" fill="#fff">Weight Load Path</text>
 
-  <!-- B-buffer (activation buffer + skew) -->
-  <rect x="440" y="170" width="160" height="40" rx="3" class="block"/>
-  <text x="520" y="190" text-anchor="middle" font-size="11" fill="#fff">Activation Buffer</text>
-  <text x="520" y="203" text-anchor="middle" font-size="9" fill="#cbd5e1">+ skew staircase</text>
+  <rect x="430" y="166" width="170" height="38" rx="3" class="block"/>
+  <text x="515" y="183" text-anchor="middle" font-size="11" fill="#fff">Activation Buffer</text>
+  <text x="515" y="196" text-anchor="middle" font-size="9" fill="#cbd5e1">+ skew staircase</text>
 
-  <!-- AXI to buffer arrows -->
-  <line x1="320" y1="140" x2="320" y2="170" class="arrow-a"/>
-  <line x1="520" y1="140" x2="520" y2="170" class="arrow-b"/>
+  <line x1="315" y1="136" x2="315" y2="166" class="arrow-a"/>
+  <line x1="515" y1="136" x2="515" y2="166" class="arrow-b"/>
 
-  <!-- A buffer drives top edge of PE grid (load phase) -->
-  <line x1="320" y1="210" x2="320" y2="245" class="arrow-a"/>
-  <!-- B buffer drives top edge of PE grid (compute phase) -->
-  <line x1="520" y1="210" x2="520" y2="245" class="arrow-b"/>
+  <!-- Activations enter top of grid -->
+  <line x1="315" y1="204" x2="315" y2="238" class="arrow-a"/>
+  <line x1="515" y1="204" x2="515" y2="238" class="arrow-b"/>
+  <text x="640" y="226" class="small" fill="#0369a1">B streams DOWN columns (skewed)</text>
 
-  <!-- Note about A-load shift direction -->
-  <text x="200" y="232" class="small" text-anchor="end" fill="#b45309">A loaded top→bottom</text>
-  <text x="200" y="244" class="small" text-anchor="end" fill="#b45309">during LOAD phase</text>
+  <!-- 8x8 PE grid: origin (180, 244), each cell 56 wide x 50 tall -->
+  <!-- We'll draw rows r=0..7, cols k=0..7 -->
+  <rect x="180" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="266" class="pe-text">PE</text>
+  <text x="205.0" y="280" class="pe-coord">(0,0)</text>
+  <rect x="236" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="266" class="pe-text">PE</text>
+  <text x="261.0" y="280" class="pe-coord">(0,1)</text>
+  <rect x="292" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="266" class="pe-text">PE</text>
+  <text x="317.0" y="280" class="pe-coord">(0,2)</text>
+  <rect x="348" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="266" class="pe-text">PE</text>
+  <text x="373.0" y="280" class="pe-coord">(0,3)</text>
+  <rect x="404" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="266" class="pe-text">PE</text>
+  <text x="429.0" y="280" class="pe-coord">(0,4)</text>
+  <rect x="460" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="266" class="pe-text">PE</text>
+  <text x="485.0" y="280" class="pe-coord">(0,5)</text>
+  <rect x="516" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="266" class="pe-text">PE</text>
+  <text x="541.0" y="280" class="pe-coord">(0,6)</text>
+  <rect x="572" y="244" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="266" class="pe-text">PE</text>
+  <text x="597.0" y="280" class="pe-coord">(0,7)</text>
+  <rect x="180" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="316" class="pe-text">PE</text>
+  <text x="205.0" y="330" class="pe-coord">(1,0)</text>
+  <rect x="236" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="316" class="pe-text">PE</text>
+  <text x="261.0" y="330" class="pe-coord">(1,1)</text>
+  <rect x="292" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="316" class="pe-text">PE</text>
+  <text x="317.0" y="330" class="pe-coord">(1,2)</text>
+  <rect x="348" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="316" class="pe-text">PE</text>
+  <text x="373.0" y="330" class="pe-coord">(1,3)</text>
+  <rect x="404" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="316" class="pe-text">PE</text>
+  <text x="429.0" y="330" class="pe-coord">(1,4)</text>
+  <rect x="460" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="316" class="pe-text">PE</text>
+  <text x="485.0" y="330" class="pe-coord">(1,5)</text>
+  <rect x="516" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="316" class="pe-text">PE</text>
+  <text x="541.0" y="330" class="pe-coord">(1,6)</text>
+  <rect x="572" y="294" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="316" class="pe-text">PE</text>
+  <text x="597.0" y="330" class="pe-coord">(1,7)</text>
+  <rect x="180" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="366" class="pe-text">PE</text>
+  <text x="205.0" y="380" class="pe-coord">(2,0)</text>
+  <rect x="236" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="366" class="pe-text">PE</text>
+  <text x="261.0" y="380" class="pe-coord">(2,1)</text>
+  <rect x="292" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="366" class="pe-text">PE</text>
+  <text x="317.0" y="380" class="pe-coord">(2,2)</text>
+  <rect x="348" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="366" class="pe-text">PE</text>
+  <text x="373.0" y="380" class="pe-coord">(2,3)</text>
+  <rect x="404" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="366" class="pe-text">PE</text>
+  <text x="429.0" y="380" class="pe-coord">(2,4)</text>
+  <rect x="460" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="366" class="pe-text">PE</text>
+  <text x="485.0" y="380" class="pe-coord">(2,5)</text>
+  <rect x="516" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="366" class="pe-text">PE</text>
+  <text x="541.0" y="380" class="pe-coord">(2,6)</text>
+  <rect x="572" y="344" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="366" class="pe-text">PE</text>
+  <text x="597.0" y="380" class="pe-coord">(2,7)</text>
+  <rect x="180" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="416" class="pe-text">PE</text>
+  <text x="205.0" y="430" class="pe-coord">(3,0)</text>
+  <rect x="236" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="416" class="pe-text">PE</text>
+  <text x="261.0" y="430" class="pe-coord">(3,1)</text>
+  <rect x="292" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="416" class="pe-text">PE</text>
+  <text x="317.0" y="430" class="pe-coord">(3,2)</text>
+  <rect x="348" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="416" class="pe-text">PE</text>
+  <text x="373.0" y="430" class="pe-coord">(3,3)</text>
+  <rect x="404" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="416" class="pe-text">PE</text>
+  <text x="429.0" y="430" class="pe-coord">(3,4)</text>
+  <rect x="460" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="416" class="pe-text">PE</text>
+  <text x="485.0" y="430" class="pe-coord">(3,5)</text>
+  <rect x="516" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="416" class="pe-text">PE</text>
+  <text x="541.0" y="430" class="pe-coord">(3,6)</text>
+  <rect x="572" y="394" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="416" class="pe-text">PE</text>
+  <text x="597.0" y="430" class="pe-coord">(3,7)</text>
+  <rect x="180" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="466" class="pe-text">PE</text>
+  <text x="205.0" y="480" class="pe-coord">(4,0)</text>
+  <rect x="236" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="466" class="pe-text">PE</text>
+  <text x="261.0" y="480" class="pe-coord">(4,1)</text>
+  <rect x="292" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="466" class="pe-text">PE</text>
+  <text x="317.0" y="480" class="pe-coord">(4,2)</text>
+  <rect x="348" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="466" class="pe-text">PE</text>
+  <text x="373.0" y="480" class="pe-coord">(4,3)</text>
+  <rect x="404" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="466" class="pe-text">PE</text>
+  <text x="429.0" y="480" class="pe-coord">(4,4)</text>
+  <rect x="460" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="466" class="pe-text">PE</text>
+  <text x="485.0" y="480" class="pe-coord">(4,5)</text>
+  <rect x="516" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="466" class="pe-text">PE</text>
+  <text x="541.0" y="480" class="pe-coord">(4,6)</text>
+  <rect x="572" y="444" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="466" class="pe-text">PE</text>
+  <text x="597.0" y="480" class="pe-coord">(4,7)</text>
+  <rect x="180" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="516" class="pe-text">PE</text>
+  <text x="205.0" y="530" class="pe-coord">(5,0)</text>
+  <rect x="236" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="516" class="pe-text">PE</text>
+  <text x="261.0" y="530" class="pe-coord">(5,1)</text>
+  <rect x="292" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="516" class="pe-text">PE</text>
+  <text x="317.0" y="530" class="pe-coord">(5,2)</text>
+  <rect x="348" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="516" class="pe-text">PE</text>
+  <text x="373.0" y="530" class="pe-coord">(5,3)</text>
+  <rect x="404" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="516" class="pe-text">PE</text>
+  <text x="429.0" y="530" class="pe-coord">(5,4)</text>
+  <rect x="460" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="516" class="pe-text">PE</text>
+  <text x="485.0" y="530" class="pe-coord">(5,5)</text>
+  <rect x="516" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="516" class="pe-text">PE</text>
+  <text x="541.0" y="530" class="pe-coord">(5,6)</text>
+  <rect x="572" y="494" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="516" class="pe-text">PE</text>
+  <text x="597.0" y="530" class="pe-coord">(5,7)</text>
+  <rect x="180" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="566" class="pe-text">PE</text>
+  <text x="205.0" y="580" class="pe-coord">(6,0)</text>
+  <rect x="236" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="566" class="pe-text">PE</text>
+  <text x="261.0" y="580" class="pe-coord">(6,1)</text>
+  <rect x="292" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="566" class="pe-text">PE</text>
+  <text x="317.0" y="580" class="pe-coord">(6,2)</text>
+  <rect x="348" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="566" class="pe-text">PE</text>
+  <text x="373.0" y="580" class="pe-coord">(6,3)</text>
+  <rect x="404" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="566" class="pe-text">PE</text>
+  <text x="429.0" y="580" class="pe-coord">(6,4)</text>
+  <rect x="460" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="566" class="pe-text">PE</text>
+  <text x="485.0" y="580" class="pe-coord">(6,5)</text>
+  <rect x="516" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="566" class="pe-text">PE</text>
+  <text x="541.0" y="580" class="pe-coord">(6,6)</text>
+  <rect x="572" y="544" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="566" class="pe-text">PE</text>
+  <text x="597.0" y="580" class="pe-coord">(6,7)</text>
+  <rect x="180" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="205.0" y="616" class="pe-text">PE</text>
+  <text x="205.0" y="630" class="pe-coord">(7,0)</text>
+  <rect x="236" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="261.0" y="616" class="pe-text">PE</text>
+  <text x="261.0" y="630" class="pe-coord">(7,1)</text>
+  <rect x="292" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="317.0" y="616" class="pe-text">PE</text>
+  <text x="317.0" y="630" class="pe-coord">(7,2)</text>
+  <rect x="348" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="373.0" y="616" class="pe-text">PE</text>
+  <text x="373.0" y="630" class="pe-coord">(7,3)</text>
+  <rect x="404" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="429.0" y="616" class="pe-text">PE</text>
+  <text x="429.0" y="630" class="pe-coord">(7,4)</text>
+  <rect x="460" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="485.0" y="616" class="pe-text">PE</text>
+  <text x="485.0" y="630" class="pe-coord">(7,5)</text>
+  <rect x="516" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="541.0" y="616" class="pe-text">PE</text>
+  <text x="541.0" y="630" class="pe-coord">(7,6)</text>
+  <rect x="572" y="594" width="50" height="44" rx="3" class="block"/>
+  <text x="597.0" y="616" class="pe-text">PE</text>
+  <text x="597.0" y="630" class="pe-coord">(7,7)</text>
 
-  <text x="640" y="232" class="small" fill="#0369a1">B streams top→bottom</text>
-  <text x="640" y="244" class="small" fill="#0369a1">with skew during COMPUTE</text>
+  <!-- Downward flow hints (B) between a couple of rows -->
+  <line x1="205" y1="294" x2="205" y2="300" class="arrow-b" stroke-opacity="0.35"/>
+  <line x1="205" y1="344" x2="205" y2="350" class="arrow-b" stroke-opacity="0.35"/>
+  <line x1="205" y1="394" x2="205" y2="400" class="arrow-b" stroke-opacity="0.35"/>
 
-  <!-- 8x8 PE Grid -->
-  <g id="pe-grid">
-    <!-- 8 rows x 8 cols, each PE 50x50, starting at (180, 250) -->
-  </g>
+  <!-- Rightward flow hints (psums) within a couple of rows -->
+  <line x1="226" y1="269" x2="236" y2="269" class="arrow-c" stroke-opacity="0.35"/>
+  <line x1="282" y1="269" x2="292" y2="269" class="arrow-c" stroke-opacity="0.35"/>
+  <line x1="338" y1="269" x2="348" y2="269" class="arrow-c" stroke-opacity="0.35"/>
 
-  <!-- Build PE grid -->
-  <g>
-    <!-- Row 0 -->
-    <g>
-      <rect x="180" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="272" class="pe-text">PE</text>
-      <text x="205" y="290" class="pe-coord">(0,0)</text>
-      <rect x="240" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="272" class="pe-text">PE</text>
-      <text x="265" y="290" class="pe-coord">(0,1)</text>
-      <rect x="300" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="272" class="pe-text">PE</text>
-      <text x="325" y="290" class="pe-coord">(0,2)</text>
-      <rect x="360" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="272" class="pe-text">PE</text>
-      <text x="385" y="290" class="pe-coord">(0,3)</text>
-      <rect x="420" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="272" class="pe-text">PE</text>
-      <text x="445" y="290" class="pe-coord">(0,4)</text>
-      <rect x="480" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="272" class="pe-text">PE</text>
-      <text x="505" y="290" class="pe-coord">(0,5)</text>
-      <rect x="540" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="272" class="pe-text">PE</text>
-      <text x="565" y="290" class="pe-coord">(0,6)</text>
-      <rect x="600" y="250" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="272" class="pe-text">PE</text>
-      <text x="625" y="290" class="pe-coord">(0,7)</text>
-    </g>
-    <!-- Row 1 -->
-    <g>
-      <rect x="180" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="327" class="pe-text">PE</text>
-      <text x="205" y="345" class="pe-coord">(1,0)</text>
-      <rect x="240" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="327" class="pe-text">PE</text>
-      <text x="265" y="345" class="pe-coord">(1,1)</text>
-      <rect x="300" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="327" class="pe-text">PE</text>
-      <text x="325" y="345" class="pe-coord">(1,2)</text>
-      <rect x="360" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="327" class="pe-text">PE</text>
-      <text x="385" y="345" class="pe-coord">(1,3)</text>
-      <rect x="420" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="327" class="pe-text">PE</text>
-      <text x="445" y="345" class="pe-coord">(1,4)</text>
-      <rect x="480" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="327" class="pe-text">PE</text>
-      <text x="505" y="345" class="pe-coord">(1,5)</text>
-      <rect x="540" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="327" class="pe-text">PE</text>
-      <text x="565" y="345" class="pe-coord">(1,6)</text>
-      <rect x="600" y="305" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="327" class="pe-text">PE</text>
-      <text x="625" y="345" class="pe-coord">(1,7)</text>
-    </g>
-    <!-- Row 2 -->
-    <g>
-      <rect x="180" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="382" class="pe-text">PE</text>
-      <text x="205" y="400" class="pe-coord">(2,0)</text>
-      <rect x="240" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="382" class="pe-text">PE</text>
-      <text x="265" y="400" class="pe-coord">(2,1)</text>
-      <rect x="300" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="382" class="pe-text">PE</text>
-      <text x="325" y="400" class="pe-coord">(2,2)</text>
-      <rect x="360" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="382" class="pe-text">PE</text>
-      <text x="385" y="400" class="pe-coord">(2,3)</text>
-      <rect x="420" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="382" class="pe-text">PE</text>
-      <text x="445" y="400" class="pe-coord">(2,4)</text>
-      <rect x="480" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="382" class="pe-text">PE</text>
-      <text x="505" y="400" class="pe-coord">(2,5)</text>
-      <rect x="540" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="382" class="pe-text">PE</text>
-      <text x="565" y="400" class="pe-coord">(2,6)</text>
-      <rect x="600" y="360" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="382" class="pe-text">PE</text>
-      <text x="625" y="400" class="pe-coord">(2,7)</text>
-    </g>
-    <!-- Row 3 -->
-    <g>
-      <rect x="180" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="437" class="pe-text">PE</text>
-      <text x="205" y="455" class="pe-coord">(3,0)</text>
-      <rect x="240" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="437" class="pe-text">PE</text>
-      <text x="265" y="455" class="pe-coord">(3,1)</text>
-      <rect x="300" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="437" class="pe-text">PE</text>
-      <text x="325" y="455" class="pe-coord">(3,2)</text>
-      <rect x="360" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="437" class="pe-text">PE</text>
-      <text x="385" y="455" class="pe-coord">(3,3)</text>
-      <rect x="420" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="437" class="pe-text">PE</text>
-      <text x="445" y="455" class="pe-coord">(3,4)</text>
-      <rect x="480" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="437" class="pe-text">PE</text>
-      <text x="505" y="455" class="pe-coord">(3,5)</text>
-      <rect x="540" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="437" class="pe-text">PE</text>
-      <text x="565" y="455" class="pe-coord">(3,6)</text>
-      <rect x="600" y="415" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="437" class="pe-text">PE</text>
-      <text x="625" y="455" class="pe-coord">(3,7)</text>
-    </g>
-    <!-- Row 4 -->
-    <g>
-      <rect x="180" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="492" class="pe-text">PE</text>
-      <text x="205" y="510" class="pe-coord">(4,0)</text>
-      <rect x="240" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="492" class="pe-text">PE</text>
-      <text x="265" y="510" class="pe-coord">(4,1)</text>
-      <rect x="300" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="492" class="pe-text">PE</text>
-      <text x="325" y="510" class="pe-coord">(4,2)</text>
-      <rect x="360" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="492" class="pe-text">PE</text>
-      <text x="385" y="510" class="pe-coord">(4,3)</text>
-      <rect x="420" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="492" class="pe-text">PE</text>
-      <text x="445" y="510" class="pe-coord">(4,4)</text>
-      <rect x="480" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="492" class="pe-text">PE</text>
-      <text x="505" y="510" class="pe-coord">(4,5)</text>
-      <rect x="540" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="492" class="pe-text">PE</text>
-      <text x="565" y="510" class="pe-coord">(4,6)</text>
-      <rect x="600" y="470" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="492" class="pe-text">PE</text>
-      <text x="625" y="510" class="pe-coord">(4,7)</text>
-    </g>
-    <!-- Row 5 -->
-    <g>
-      <rect x="180" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="547" class="pe-text">PE</text>
-      <text x="205" y="565" class="pe-coord">(5,0)</text>
-      <rect x="240" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="547" class="pe-text">PE</text>
-      <text x="265" y="565" class="pe-coord">(5,1)</text>
-      <rect x="300" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="547" class="pe-text">PE</text>
-      <text x="325" y="565" class="pe-coord">(5,2)</text>
-      <rect x="360" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="547" class="pe-text">PE</text>
-      <text x="385" y="565" class="pe-coord">(5,3)</text>
-      <rect x="420" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="547" class="pe-text">PE</text>
-      <text x="445" y="565" class="pe-coord">(5,4)</text>
-      <rect x="480" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="547" class="pe-text">PE</text>
-      <text x="505" y="565" class="pe-coord">(5,5)</text>
-      <rect x="540" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="547" class="pe-text">PE</text>
-      <text x="565" y="565" class="pe-coord">(5,6)</text>
-      <rect x="600" y="525" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="547" class="pe-text">PE</text>
-      <text x="625" y="565" class="pe-coord">(5,7)</text>
-    </g>
-    <!-- Row 6 -->
-    <g>
-      <rect x="180" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="602" class="pe-text">PE</text>
-      <text x="205" y="620" class="pe-coord">(6,0)</text>
-      <rect x="240" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="602" class="pe-text">PE</text>
-      <text x="265" y="620" class="pe-coord">(6,1)</text>
-      <rect x="300" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="602" class="pe-text">PE</text>
-      <text x="325" y="620" class="pe-coord">(6,2)</text>
-      <rect x="360" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="602" class="pe-text">PE</text>
-      <text x="385" y="620" class="pe-coord">(6,3)</text>
-      <rect x="420" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="602" class="pe-text">PE</text>
-      <text x="445" y="620" class="pe-coord">(6,4)</text>
-      <rect x="480" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="602" class="pe-text">PE</text>
-      <text x="505" y="620" class="pe-coord">(6,5)</text>
-      <rect x="540" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="602" class="pe-text">PE</text>
-      <text x="565" y="620" class="pe-coord">(6,6)</text>
-      <rect x="600" y="580" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="602" class="pe-text">PE</text>
-      <text x="625" y="620" class="pe-coord">(6,7)</text>
-    </g>
-    <!-- Row 7 -->
-    <g>
-      <rect x="180" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="205" y="657" class="pe-text">PE</text>
-      <text x="205" y="675" class="pe-coord">(7,0)</text>
-      <rect x="240" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="265" y="657" class="pe-text">PE</text>
-      <text x="265" y="675" class="pe-coord">(7,1)</text>
-      <rect x="300" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="325" y="657" class="pe-text">PE</text>
-      <text x="325" y="675" class="pe-coord">(7,2)</text>
-      <rect x="360" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="385" y="657" class="pe-text">PE</text>
-      <text x="385" y="675" class="pe-coord">(7,3)</text>
-      <rect x="420" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="445" y="657" class="pe-text">PE</text>
-      <text x="445" y="675" class="pe-coord">(7,4)</text>
-      <rect x="480" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="505" y="657" class="pe-text">PE</text>
-      <text x="505" y="675" class="pe-coord">(7,5)</text>
-      <rect x="540" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="565" y="657" class="pe-text">PE</text>
-      <text x="565" y="675" class="pe-coord">(7,6)</text>
-      <rect x="600" y="635" width="50" height="50" rx="3" class="block"/>
-      <text x="625" y="657" class="pe-text">PE</text>
-      <text x="625" y="675" class="pe-coord">(7,7)</text>
-    </g>
-  </g>
+  <!-- Output drain on the RIGHT edge -->
+  <rect x="640" y="244" width="40" height="400" rx="3" class="block"/>
+  <text x="660" y="450" text-anchor="middle" font-size="11" fill="#fff" transform="rotate(90 660 450)">Output De-skew / Result Pack (8 x INT32)</text>
 
-  <!-- Decorative downward arrows showing data flow (between rows) -->
-  <line x1="265" y1="300" x2="265" y2="305" class="arrow-b" stroke-opacity="0.3"/>
-  <line x1="385" y1="355" x2="385" y2="360" class="arrow-b" stroke-opacity="0.3"/>
-  <line x1="505" y1="410" x2="505" y2="415" class="arrow-b" stroke-opacity="0.3"/>
-
-  <!-- Output Drain row (bottom edge) -->
-  <rect x="180" y="700" width="470" height="40" rx="3" class="block"/>
-  <text x="415" y="725" text-anchor="middle" font-size="11" fill="#fff">Output Drain / Result Pack (8 × INT32)</text>
-
-  <!-- Arrows from bottom of grid to drain -->
-  <line x1="205" y1="685" x2="205" y2="700" class="arrow-c"/>
-  <line x1="325" y1="685" x2="325" y2="700" class="arrow-c"/>
-  <line x1="445" y1="685" x2="445" y2="700" class="arrow-c"/>
-  <line x1="565" y1="685" x2="565" y2="700" class="arrow-c"/>
+  <!-- Arrows from right edge of grid into the drain -->
+  <line x1="626" y1="269" x2="640" y2="269" class="arrow-c"/>
+  <line x1="626" y1="369" x2="640" y2="369" class="arrow-c"/>
+  <line x1="626" y1="469" x2="640" y2="469" class="arrow-c"/>
+  <line x1="626" y1="569" x2="640" y2="569" class="arrow-c"/>
 
   <!-- Output interface -->
-  <rect x="680" y="700" width="160" height="60" rx="4" class="iface"/>
-  <text x="760" y="725" class="iface-text">m_axis_c</text>
-  <text x="760" y="742" class="iface-text" font-size="10">Results — 256b @ 8 beats</text>
+  <rect x="720" y="420" width="150" height="56" rx="4" class="iface"/>
+  <text x="795" y="444" class="iface-text">m_axis_c</text>
+  <text x="795" y="460" class="iface-text" font-size="10">Results — 256b x 8 beats</text>
 
-  <line x1="650" y1="720" x2="680" y2="720" class="arrow-c"/>
+  <line x1="680" y1="448" x2="720" y2="448" class="arrow-c"/>
 
   <!-- Legend -->
-  <rect x="700" y="240" width="270" height="160" rx="4" class="legend-box"/>
-  <text x="715" y="260" font-size="12" font-weight="700" fill="#111">Legend</text>
+  <rect x="720" y="244" width="300" height="150" rx="4" class="legend-box"/>
+  <text x="735" y="264" font-size="12" font-weight="700" fill="#111">Legend</text>
 
-  <line x1="715" y1="280" x2="745" y2="280" class="arrow-a"/>
-  <text x="755" y="284" class="small">A (weights) — INT8, loaded once</text>
+  <line x1="735" y1="282" x2="765" y2="282" class="arrow-a"/>
+  <text x="775" y="286" class="small">A (weights) — INT8, preloaded into PEs</text>
 
-  <line x1="715" y1="300" x2="745" y2="300" class="arrow-b"/>
-  <text x="755" y="304" class="small">B (activations) — INT8, streamed</text>
+  <line x1="735" y1="302" x2="765" y2="302" class="arrow-b"/>
+  <text x="775" y="306" class="small">B (activations) — INT8, streams DOWN</text>
 
-  <line x1="715" y1="320" x2="745" y2="320" class="arrow-c"/>
-  <text x="755" y="324" class="small">C (psums / results) — INT32</text>
+  <line x1="735" y1="322" x2="765" y2="322" class="arrow-c"/>
+  <text x="775" y="326" class="small">Partial sums / C — INT32, flow RIGHT</text>
 
-  <line x1="715" y1="340" x2="745" y2="340" class="arrow"/>
-  <text x="755" y="344" class="small">Control / status signals</text>
+  <line x1="735" y1="342" x2="765" y2="342" class="arrow"/>
+  <text x="775" y="346" class="small">Control / status</text>
 
-  <text x="715" y="370" class="small" font-weight="700">Timing per tile:</text>
-  <text x="715" y="385" class="small">LOAD (8) → COMPUTE (8) → DRAIN (8) = 24 cycles</text>
+  <text x="735" y="372" class="small" font-weight="700">Per tile: LOAD(8) -&gt; COMPUTE(8) -&gt; DRAIN(8) = 24 cyc</text>
+  <text x="735" y="386" class="small">Each PE(r,k) holds weight A[r][k]</text>
 
 </svg>

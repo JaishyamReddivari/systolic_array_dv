@@ -1,7 +1,7 @@
 # Systolic Array Specification — `systolic_array_dv`
 
-**Version:** 0.1 (Draft)
-**Author:** Jaishyam Reddy Reddivari
+**Version:** 0.2 (Draft)
+**Author:** Jaishyam
 **Status:** Architecture frozen pending Phase 1 HLS implementation
 
 ---
@@ -19,17 +19,23 @@ This document is the contract between the design and the verification environmen
 | Array size     | 8 × 8 PEs     | 64 MAC units total                               |
 | Operand width  | 8 bits (INT8) | Signed two's complement                          |
 | Product width  | 16 bits       | INT8 × INT8 → INT16 (internal to PE)             |
-| Accumulator    | 32 bits       | INT32 signed, see 6 for justification            |
-| Dataflow       | Weight-stationary | See 3                                        |
+| Accumulator    | 32 bits       | INT32 signed, see section 6 for justification    |
+| Dataflow       | Weight-stationary | See section 3                                |
 | Tile size      | Fixed 8×8     | Larger matmuls handled by software tiling        |
 | Clock          | Single, synchronous, positive-edge triggered | Target frequency TBD post-synthesis |
 | Reset          | Synchronous, active-high                       | Resets all PE accumulators and FSM state         |
 
 ## 3. Dataflow: Weight-Stationary
 
-Operand A (the "weights" by CNN convention) is preloaded into the PE grid. Each PE(i, j) holds `A[i][j]` in a local register for the duration of one compute pass. Operand B (the "activations") streams in from the top edge of the grid, flowing downward through the columns with a staircase skew. Partial sums accumulate within each PE and the final C values are read out at the bottom edge after the compute and drain phases complete.
+Operand A (the "weights" by CNN convention) is preloaded into the PE grid. Each PE at grid position (r, k) holds `A[r][k]` in a local register for the duration of one compute pass.
 
-**Justification:** Weights have the highest reuse factor in typical CNN workloads (each weight is multiplied by activations across many output positions and batch elements), so keeping them stationary in PE registers amortizes the load cost over the maximum number of MAC operations. Weight-stationary also has the simplest control FSM of the major dataflows, which reduces design risk for a first portfolio implementation. This is the TPU v1 pattern.
+Operand B (the "activations") streams in from the **top edge** of the grid. Value `B[k][c]` enters the top of grid column `k` and flows **downward** through that column, one PE per cycle, with a staircase skew so that column `k` is offset `k` cycles relative to column 0.
+
+Partial sums flow **rightward** along each row. At PE(r, k), the incoming partial sum from the left neighbor is added to the local product `A[r][k] × B[k][c]`, and the result is passed to the right neighbor. After traversing all 8 columns of a row, the accumulated value is the dot product for one output element. The final `C[r][c]` values **exit the right edge** of the array.
+
+This perpendicular arrangement — activations flowing down, partial sums flowing right — is the defining structure of a weight-stationary systolic matmul. The activation stream and the partial-sum stream must be perpendicular for the dot products to accumulate correctly.
+
+**Justification for weight-stationary:** Weights have the highest reuse factor in typical CNN workloads (each weight is multiplied by activations across many output positions and batch elements), so keeping them stationary in PE registers amortizes the load cost over the maximum number of MAC operations. Weight-stationary also has the simplest control FSM of the major dataflows, which reduces design risk for a first portfolio implementation. This is the TPU v1 pattern.
 
 ## 4. Operating Phases
 
@@ -37,11 +43,13 @@ The control FSM cycles through three phases per matmul tile:
 
 | Phase   | Duration  | Description                                                                 |
 |---------|-----------|-----------------------------------------------------------------------------|
-| LOAD    | 8 cycles  | Operand A shifted into the PE grid one row per cycle from the top edge.     |
-| COMPUTE | 8 cycles  | Operand B streamed in with skew; PEs perform MAC; psums propagate downward. |
-| DRAIN   | 8 cycles  | Final psums flushed out the bottom edge as C values.                        |
+| LOAD    | 8 cycles  | Operand A shifted into the PE grid from the top edge.                       |
+| COMPUTE | 8 cycles  | Operand B streamed in with skew; PEs perform MAC; psums propagate rightward.|
+| DRAIN   | 8 cycles  | Final psums flushed out the right edge as C values.                         |
 
 Total cycles per tile: **24** (back-to-back tiles can pipeline LOAD of tile N+1 with DRAIN of tile N — stretch goal for Rev B).
+
+The cycle-accurate model (`ref/python/systolic_sim.py`) confirms a full COMPUTE+DRAIN takes `3N - 2 = 22` internal cycles for the data to traverse the array and exit, consistent with this phase budget.
 
 ## 5. Interfaces
 
@@ -65,7 +73,7 @@ Total cycles per tile: **24** (back-to-back tiles can pipeline LOAD of tile N+1 
 | `tready`   | 1      | Slave asserts when ready to accept                       |
 | `tlast`    | 1      | Asserted on the 8th (final) beat of an A tile            |
 
-**Transaction:** Exactly 8 beats per tile. Beat `i` carries row `i` of A, with `A[i][0]` in `tdata[7:0]`, `A[i][1]` in `tdata[15:8]`, ..., `A[i][7]` in `tdata[63:56]`. `tlast` asserted on beat 7 (zero-indexed).
+**Transaction:** Exactly 8 beats per tile. Beat `r` carries row `r` of A, with `A[r][0]` in `tdata[7:0]`, `A[r][1]` in `tdata[15:8]`, ..., `A[r][7]` in `tdata[63:56]`. `tlast` asserted on beat 7 (zero-indexed).
 
 ### 5.3 `s_axis_b` — Activation Input Stream
 
@@ -87,7 +95,7 @@ Total cycles per tile: **24** (back-to-back tiles can pipeline LOAD of tile N+1 
 | `tready`   | 1      | Slave asserts when ready to accept                       |
 | `tlast`    | 1      | Asserted on the 8th (final) beat of a C tile             |
 
-**Transaction:** Exactly 8 beats per tile. Beat `i` carries row `i` of C, with `C[i][0]` in `tdata[31:0]` through `C[i][7]` in `tdata[255:224]`.
+**Transaction:** Exactly 8 beats per tile. Beat `r` carries row `r` of C, with `C[r][0]` in `tdata[31:0]` through `C[r][7]` in `tdata[255:224]`. Internal de-skew logic in the controller collects the staggered right-edge outputs and presents them in row-major order; the consumer sees clean row-per-beat output.
 
 ### 5.5 `s_axi_lite` — Control / Status Registers
 
@@ -105,9 +113,9 @@ Writing `1` to `CTRL.start` initiates a tile. Hardware self-clears `start` after
 
 ### 6.1 Accumulator Width Justification
 
-Each output `C[i][j]` is the sum of 8 INT8×INT8 products. Worst-case bounds:
+Each output `C[r][c]` is the sum of 8 INT8×INT8 products. Worst-case bounds:
 
-- INT8 range: `[-128, +127]`. Worst-case product magnitude: `128 × 128 = 16384` (fits INT16 with one bit of headroom; the product is technically in `[-16384, +16384]`).
+- INT8 range: `[-128, +127]`. Worst-case product magnitude: `128 × 128 = 16384`.
 - Sum of 8 such products: worst case `8 × 16384 = 131072`, fits comfortably in INT18.
 
 **Decision: 32-bit accumulator.** Reasons:
@@ -130,27 +138,28 @@ Each of the 64 PEs contains:
 
 | Element             | Width  | Description                                              |
 |---------------------|--------|----------------------------------------------------------|
-| Weight register     | 8 bits | Holds `A[i][j]`, loaded during LOAD phase                |
-| Activation pipe reg | 8 bits | Pipeline reg for B value flowing down through column     |
+| Weight register     | 8 bits | Holds `A[r][k]`, loaded during LOAD phase                |
+| Activation pipe reg | 8 bits | Pipeline reg for B value flowing DOWN to the PE below    |
 | Multiplier          | 8×8→16 | Signed × signed                                          |
-| Adder               | 32-bit | Adds (sign-extended product) + incoming psum             |
-| Psum pipe reg       | 32 bits| Holds accumulator state / outgoing psum                  |
+| Adder               | 32-bit | Adds (sign-extended product) + incoming psum from left   |
+| Psum pipe reg       | 32 bits| Holds partial sum, passed RIGHT to the next PE           |
 
 **Per-cycle behavior during COMPUTE:**
 ```
-psum_out <= psum_in + (weight_reg * activation_in)
-activation_out <= activation_in   // pass downward to next PE
+psum_out      <= psum_in_from_left + (weight_reg * activation_in_from_top)
+activation_out <= activation_in_from_top   // pass downward to PE below
 ```
 
-**Connectivity:** Each PE has only nearest-neighbor connections (one above, one below — no diagonal or skip connections). This is the canonical "systolic" structure that keeps wiring local and timing closure achievable at high clock rates.
+**Connectivity:** Each PE has only nearest-neighbor connections — one above (activation source), one below (activation sink), one to the left (psum source), one to the right (psum sink). No diagonal or skip connections. This is the canonical "systolic" structure that keeps wiring local and timing closure achievable at high clock rates.
 
 ## 8. Verification Implications
 
 Cross-referenced with `docs/vplan.md` (TBD). Quick highlights to keep in mind during RTL development:
 
-- The skew pattern is internal to the controller — the testbench feeds raw row-major data and the DUT handles staggering. Drivers should not assume the testbench needs to model skew.
-- Result latency is deterministic: tile complete at exactly `clock_of(CTRL.start)` + 24 cycles, assuming both `s_axis_a` and `s_axis_b` are ready when needed. Backpressure from `m_axis_c.tready = 0` is supported; result is held in output staging registers until accepted.
+- The skew (input) and de-skew (output) patterns are internal to the controller — the testbench feeds raw row-major data and reads raw row-major results. Drivers should not need to model skew.
+- Result latency is deterministic: tile complete at exactly `clock_of(CTRL.start)` + 24 cycles, assuming both input streams are ready when needed. Backpressure from `m_axis_c.tready = 0` is supported; results are held in output staging registers until accepted.
 - The accumulator's 32-bit width relative to the 18-bit mathematical maximum gives the verification environment a clean assertion: `overflow_sticky` must be 0 for all legal stimulus.
+- The cycle-accurate Python model (`ref/python/systolic_sim.py`) is the timing-aware reference; the behavioral golden (`ref/python/golden.py`) is the spec-level reference. The DV scoreboard should agree with both.
 
 ## 9. Out of Scope (Rev A)
 
@@ -173,6 +182,7 @@ The following are explicitly *not* in this design and may appear in Rev B:
 
 ## 11. Revision History
 
-| Version | Date       | Author    | Change                            |
-|---------|------------|-----------|-----------------------------------|
-| 0.1     | 2026-05-28 | Jaishyam  | Initial draft.                    |
+| Version | Date       | Author    | Change                                                          |
+|---------|------------|-----------|-----------------------------------------------------------------|
+| 0.1     | 2026-05-28 | Jaishyam  | Initial draft.                                                  |
+| 0.2     | 2026-06-02 | Jaishyam  | Fixed dataflow (section 3): psums flow right, C exits right edge. Corrected per Bug #1 found during cycle-accurate model development. |
