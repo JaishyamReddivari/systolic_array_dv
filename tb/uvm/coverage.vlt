@@ -1,0 +1,9 @@
+// Restrict code coverage to the DUT RTL; exclude UVM + testbench.
+`verilator_config
+coverage_off -file "*uvm-core*"
+coverage_off -file "*uvm_pkg.sv"
+coverage_off -file "*systolic_uvm_pkg.sv"
+coverage_off -file "*tb_top.sv"
+coverage_off -file "*tb_ctrl.sv"
+coverage_off -file "*_if.sv"
+coverage_off -file "*verilated_std*"

@@ -1,0 +1,19 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc:   mode bmc
+cover: mode cover
+depth 64
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -formal controller_formal.v
+blackbox systolic_array
+prep -top controller
+
+[files]
+controller_formal.v
