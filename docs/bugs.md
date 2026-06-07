@@ -1,28 +1,3 @@
-## Bug #1: Spec dataflow inconsistency — "output from bottom edge" computes wrong function
-
-**Phase found:** Model development (Phase 3, NumPy golden)
-
-**Symptom:** Cycle-accurate simulator implementing the spec's documented
-dataflow produced outputs that did not match `A @ B` for any matrix.
-
-**Investigation:** Traced bottom-of-column output for a 2x2 example.
-Found that with psums flowing down columns alongside B values, the
-bottom psum equals (sum of column weights) × (one B value), not
-the dot-product needed for matmul.
-
-**Root cause:** Spec section 3 conflated weight-stationary and
-output-stationary dataflow language. In a true weight-stationary
-systolic matmul, partial sums must flow PERPENDICULAR to the activation
-stream — if B flows down columns, psums must flow right along rows,
-and C exits the right edge, not the bottom.
-
-**Fix:** Updated spec section 3 to specify: psums flow rightward,
-C exits the right edge of the array.
-
-**Lesson:** Building the cycle-accurate model before RTL caught a
-spec inconsistency that would have wasted significant RTL+verification
-effort. This validates the "model first, RTL second" methodology.
-
 # Bugs
 
 Defects found during verification of `systolic_array_dv`, with root cause and
@@ -30,8 +5,9 @@ fix for each. Both bugs below are in the **testbench / verification
 methodology**, not the RTL: no functional RTL bug surfaced under the closed
 functional coverage (5 coverpoints + 2 crosses), 97% line coverage, and the
 seeded regression. The one spec-level dataflow bug was caught **pre-RTL** by the
-reference-model cross-check (see the README "Development Process" section), so
-it never reached the DUT and is documented there rather than here.
+reference-model cross-check, so it never reached the DUT; it is recorded in the
+specification instead — see `docs/spec.md` §3 (corrected dataflow) and §11
+(revision history, v0.2).
 
 These are logged because each one passed silently for a while, and the *way*
 each was caught is the lesson.

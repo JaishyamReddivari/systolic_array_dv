@@ -1,8 +1,8 @@
 # Systolic Array Specification — `systolic_array_dv`
 
-**Version:** 0.2 (Draft)
+**Version:** 1.0
 **Author:** Jaishyam
-**Status:** Architecture frozen pending Phase 1 HLS implementation
+**Status:** RTL complete and verified
 
 ---
 
@@ -47,7 +47,7 @@ The control FSM cycles through three phases per matmul tile:
 | COMPUTE | 8 cycles  | Operand B streamed in with skew; PEs perform MAC; psums propagate rightward.|
 | DRAIN   | 8 cycles  | Final psums flushed out the right edge as C values.                         |
 
-Total cycles per tile: **24** (back-to-back tiles can pipeline LOAD of tile N+1 with DRAIN of tile N — stretch goal for Rev B).
+Total cycles per tile: **24**. Back-to-back tiles are issued sequentially (no idle gap between tiles); pipelining LOAD of tile N+1 with DRAIN of tile N to hide latency is possible but out of current scope — future work.
 
 The cycle-accurate model (`ref/python/systolic_sim.py`) confirms a full COMPUTE+DRAIN takes `3N - 2 = 22` internal cycles for the data to traverse the array and exit, consistent with this phase budget.
 
@@ -102,12 +102,12 @@ The cycle-accurate model (`ref/python/systolic_sim.py`) confirms a full COMPUTE+
 | Offset | Name        | Access | Width | Description                                  |
 |--------|-------------|--------|-------|----------------------------------------------|
 | 0x00   | `CTRL`      | R/W    | 32    | bit[0] = `start`, bit[1] = `soft_reset`      |
-| 0x04   | `STATUS`    | RO     | 32    | bit[0] = `busy`, bit[1] = `done`, bit[2] = `overflow_sticky` |
+| 0x04   | `STATUS`    | RO/W1C | 32    | bit[0] = `busy` (RO), bit[1] = `done` (W1C), bit[2] = `overflow` (RO, tied 0) |
 | 0x08   | `TILE_CNT`  | RO     | 32    | Monotonic count of completed tiles           |
 | 0x0C   | `IRQ_EN`    | R/W    | 32    | bit[0] = enable `done` interrupt             |
 | 0x10   | `VERSION`   | RO     | 32    | bit[31:16] = major, bit[15:0] = minor        |
 
-Writing `1` to `CTRL.start` initiates a tile. Hardware self-clears `start` after one cycle. `STATUS.done` is sticky and cleared by writing `1` to it (W1C).
+Writing `1` to `CTRL.start` while the core is idle initiates a tile; `start` is held throughout the operation and **auto-clears when the tile completes** (`done`). A write to `start` while the core is busy is **ignored**, protecting the running tile. `CTRL.soft_reset` is a **self-clearing one-cycle pulse** that aborts the current tile and flushes the datapath while preserving CSR state. `STATUS.done` is sticky and cleared by writing `1` to it (W1C).
 
 ## 6. Numerical Behavior
 
@@ -126,7 +126,7 @@ Each output `C[r][c]` is the sum of 8 INT8×INT8 products. Worst-case bounds:
 
 ### 6.2 Overflow Behavior
 
-For the 8×8 tile case, overflow is mathematically impossible (max value 131072 fits in 18 bits). However, the design includes a sticky `overflow_sticky` status bit that asserts if any psum ever exceeds INT32 range. For Rev A this bit is wired but should remain zero across all valid stimulus; it provides hooks for future K-tiling support and serves as a sanity check on the verification environment (if it ever fires, something is wrong).
+For the 8×8 tile case, overflow is mathematically impossible (max value 131072 fits in 18 bits, well within INT32). The `STATUS` register reserves an `overflow` bit, but in the current design it is **tied to 0** — there is no functional overflow detector, because none is required at this tile size. The bit is a hook for future K-tiling (K > 8), where accumulation across multiple tiles could in principle exceed range; implementing the detector is future work. Because it is tied 0, `overflow` must read 0 under all legal stimulus, which the verification environment asserts as a sanity check.
 
 ### 6.3 Signedness
 
@@ -154,16 +154,16 @@ activation_out <= activation_in_from_top   // pass downward to PE below
 
 ## 8. Verification Implications
 
-Cross-referenced with `docs/vplan.md` (TBD). Quick highlights to keep in mind during RTL development:
+Cross-referenced with `docs/verification_plan.md`. Quick highlights to keep in mind during RTL development:
 
 - The skew (input) and de-skew (output) patterns are internal to the controller — the testbench feeds raw row-major data and reads raw row-major results. Drivers should not need to model skew.
 - Result latency is deterministic: tile complete at exactly `clock_of(CTRL.start)` + 24 cycles, assuming both input streams are ready when needed. Backpressure from `m_axis_c.tready = 0` is supported; results are held in output staging registers until accepted.
-- The accumulator's 32-bit width relative to the 18-bit mathematical maximum gives the verification environment a clean assertion: `overflow_sticky` must be 0 for all legal stimulus.
+- The accumulator's 32-bit width relative to the 18-bit mathematical maximum gives the verification environment a clean assertion: `overflow` must be 0 for all legal stimulus.
 - The cycle-accurate Python model (`ref/python/systolic_sim.py`) is the timing-aware reference; the behavioral golden (`ref/python/golden.py`) is the spec-level reference. The DV scoreboard should agree with both.
 
-## 9. Out of Scope (Rev A)
+## 9. Out of Scope
 
-The following are explicitly *not* in this design and may appear in Rev B:
+The following are explicitly *not* in this design; they are future work:
 
 - K-tiling (K > 8 matmul accumulation across multiple tiles)
 - Bias addition or activation functions (ReLU, etc.)
@@ -186,3 +186,4 @@ The following are explicitly *not* in this design and may appear in Rev B:
 |---------|------------|-----------|-----------------------------------------------------------------|
 | 0.1     | 2026-05-28 | Jaishyam  | Initial draft.                                                  |
 | 0.2     | 2026-06-02 | Jaishyam  | Fixed dataflow (section 3): psums flow right, C exits right edge. Corrected per Bug #1 found during cycle-accurate model development. |
+| 1.0     | 2026-06-07 | Jaishyam  | Finalized to match implemented RTL: corrected `CTRL.start` semantics (auto-clears on done, not after one cycle), marked STATUS access RO/W1C and `overflow` tied 0, replaced Rev A/B framing with current-scope / future-work, fixed verification-plan reference. |
