@@ -14,7 +14,7 @@
 
 ## 1. What this is
 
-The point of this repository is the **verification**, not the accelerator. The DUT is a deliberately small INT8 systolic-array MAC engine — the compute primitive at the heart of ML accelerators — chosen so that the verification environment around it can be complete and rigorous rather than sprawling.
+An 8×8 INT8 systolic-array accelerator — the compute primitive at the heart of ML accelerators — verified to closure with a full UVM environment. The DUT is a complete weight-stationary datapath with a real control plane: a seven-state controller FSM, AXI4-Stream data and AXI4-Lite control, de-skewed output capture, and software-commanded abort. Verification is the focus of the project, and it reaches closure — coverage closed, a 500-seed regression green, and three independent references agreeing on every tested input.
 
 What it demonstrates:
 

@@ -75,15 +75,36 @@ matched the NumPy semantics bit-for-bit by running both on identical random
 inputs (200 trials, full agreement across the C++ reference, the NumPy
 behavioral golden, and the cycle-accurate simulator).
 
+### Example 4 — A passing test I didn't trust
+
+The multi-tile test hung after the first tile — but the more revealing symptom
+was that the single-tile test *passed*. Instead of accepting the green result,
+I traced why it passed. The AXIS driver was holding `tvalid` across two clock
+edges, so the controller latched each input row twice; the buffers filled after
+four driver beats, `tready` dropped, and the driver spun. The single-tile test
+had passed only because the monitors observed the same doubled bus the DUT did
+— so the golden, computed from the monitored inputs, agreed with the DUT on
+degenerate data.
+
+The fix was to present each beat for exactly one cycle. The lesson is
+Example 1's, from the verification side: the fault was invisible to pass/fail
+and surfaced only because I audited *why* a result was green, not just whether
+it was. It was a testbench bug — the RTL was correct. A second testbench bug, a
+phase-objection race that let tests finish at simulation time zero, is what
+motivated the vacuous-pass guard in my regression script, which now fails any
+test that reports a pass while checking zero tiles.
+
 ---
 
 ## Result
 
 The project has three independent models of the same function — a C++
 behavioral reference, a NumPy behavioral golden, and a NumPy cycle-accurate
-simulator — that agree on all tested inputs. When RTL comes online, any
-disagreement isolates to the RTL rather than to an ambiguous reference. That
-triangulation was a deliberate verification-strategy choice.
+simulator — that agree on all tested inputs. That triangulation is what the UVM
+scoreboard's golden rests on, and it was a deliberate verification-strategy
+choice. It paid off as intended: once the RTL and testbench came online, the
+disagreements that surfaced isolated cleanly — both bugs I found were in the
+testbench, and the RTL stayed correct.
 
 ---
 
@@ -93,4 +114,4 @@ triangulation was a deliberate verification-strategy choice.
   explanation of unfamiliar concepts, and as a reviewer I argue with.
 - Standard toolchain (compilers, simulators, version control) used normally.
 
-*This document is updated as the project progresses.*
+*This document reflects the project through verification closure.*
