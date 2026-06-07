@@ -1,187 +1,181 @@
 # systolic_array_dv
 
-**INT8 systolic-array matrix-multiply accelerator — HLS-generated RTL, verified with UVM, formal, and back-annotated gate-level simulation.**
+**A UVM verification environment for an 8×8 INT8 weight-stationary systolic-array matrix-multiply accelerator** — built and closed on an open-source toolchain (Verilator + UVM), with functional and code coverage, a 500-seed regression, three independent reference models, and a control-plane formal track.
 
-> Status: 🚧 Work in progress. See [Roadmap](#roadmap) for current phase.
+![Simulator](https://img.shields.io/badge/simulator-Verilator%205.048-blue)
+![Methodology](https://img.shields.io/badge/methodology-UVM-blue)
+![Functional coverage](https://img.shields.io/badge/functional%20coverage-100%25-brightgreen)
+![Code coverage](https://img.shields.io/badge/line%20coverage-97.1%25-brightgreen)
+![Regression](https://img.shields.io/badge/regression-1500%20runs%20%2F%200%20fail-brightgreen)
+
+> **Status:** Dynamic verification complete — functional coverage closed, code coverage gaps waived with rationale, multi-seed regression green. Control-plane formal properties are authored; exhaustive proof is pending an SV-capable formal frontend (see [Formal](#7-formal-track)).
 
 ---
 
-## 1. Project Intent
+## 1. What this is
 
-This repository is a complete verification environment for a small INT8 systolic-array MAC engine — the kind of compute primitive that sits at the heart of NPUs and ML accelerators (TPU, NVDLA, Apple ANE).
+The point of this repository is the **verification**, not the accelerator. The DUT is a deliberately small INT8 systolic-array MAC engine — the compute primitive at the heart of ML accelerators — chosen so that the verification environment around it can be complete and rigorous rather than sprawling.
 
-The design itself is intentionally small. The point of the project is the **verification flow**, not the accelerator. Specifically, it demonstrates:
+What it demonstrates:
 
-- A modern UVM testbench with constrained-random stimulus, functional coverage, and SVA assertions.
-- A **C++ reference model imported via DPI-C** and an independent **NumPy golden model** for cross-checking.
-- **Formal property verification** with SymbiYosys on the control logic.
-- **Gate-level simulation with SDF back-annotation** to catch timing-sensitive bugs that RTL sim misses.
-- An **HLS-to-RTL** path (Vitis HLS C++ → Verilog) so the same algorithmic source is the spec, the reference, and the DUT origin.
+- A UVM environment with constrained-random stimulus, a self-checking scoreboard, and a manually-built functional-coverage model — running end to end on **Verilator**, which most people assume can't host UVM.
+- **Three independent, cross-validated reference models** (NumPy, a cycle-accurate simulator, and C++) so that a scoreboard mismatch isolates to the RTL rather than to an ambiguous golden.
+- **Coverage-driven closure**: 100% functional coverage on a curated bin set, 97.1% line coverage with every gap waived and explained.
+- A **500-seed regression** with a vacuous-pass guard, driven by a pure-stdlib Python framework.
+- A **control-plane formal track** (SVA assertions + cover properties) targeting the controller FSM and handshakes.
 
+A short note on methodology, since it shaped the whole project: the cycle-accurate model caught a dataflow (partial-sum direction) error in the original spec **before any RTL was written**. The full development workflow — including how AI tooling was and wasn't used — is in [`docs/ai_workflow.md`](docs/ai_workflow.md).
 
 ## 2. Architecture
 
-### 2.1 DUT — Systolic Array MAC Engine
+![Block diagram](docs/block_diagram.svg)
 
-| Parameter         | Value                                |
-|-------------------|--------------------------------------|
-| Array dimensions  | `N × N` PEs (default `N = 8`) *TBD*  |
-| Datatype          | INT8 × INT8 → INT32 accumulate       |
-| Dataflow          | Weight-stationary *(TBD: vs output-stationary)* |
-| Interface         | AXI4-Stream in / AXI4-Stream out     |
-| Control           | AXI4-Lite CSR block (start, status, dims) |
-| Pipeline depth    | `N + N - 1` cycles per tile          |
+### DUT — `systolic_top`
+
+| Parameter        | Value                                              |
+| ---------------- | -------------------------------------------------- |
+| Array            | 8×8 processing elements, weight-stationary         |
+| Datatype         | INT8 × INT8 → INT32 accumulate                     |
+| Data interface   | AXI4-Stream (A, B in; C out)                       |
+| Control          | AXI4-Lite CSR block                                |
+| Tile latency     | 8 load + 8 compute + 8 drain                       |
+| Overflow         | Mathematically impossible for 8×8 INT8; status bit tied off (out of scope) |
+
+**Dataflow (weight-stationary, TPU-style):** weights are preloaded into the PEs; B flows down the columns; partial sums propagate right along the rows; C exits the right edge. De-skew is handled by capturing `C[r][c]` at compute cycle `r + c + N − 1`, accounting for the one-cycle registered-output delay.
+
+**Controller FSM:** `IDLE → RECV_A → LOAD → WAIT_B → COMPUTE → OUTPUT → DONE`. `busy = (state != IDLE)`; `done` is a one-cycle pulse.
+
+### CSR map (AXI4-Lite)
+
+| Offset | Register  | Access | Notes                                             |
+| ------ | --------- | ------ | ------------------------------------------------- |
+| `0x00` | `CTRL`    | RW     | bit0 `start` (set-when-idle, auto-clears on done); bit1 `soft_reset` (self-clearing 1-cycle pulse) |
+| `0x04` | `STATUS`  | mixed  | bit0 `busy` (RO); bit1 `done` (sticky / W1C); bit2 `overflow` (RO, tied 0) |
+| `0x08` | `TILE_CNT`| RO     | tiles completed                                   |
+| `0x0C` | `IRQ_EN`  | RW     | interrupt enable                                  |
+| `0x10` | `VERSION` | RO     | `0x0001_0000`                                     |
+
+`start`-while-busy is **ignored** by design (defensive — it protects the running tile). `soft_reset` is OR'd into the controller reset only (`ctrl_rst = rst | soft_reset`), so an abort flushes the datapath while the CSR state survives.
+
+## 3. Verification approach
+
+**Reference strategy.** The scoreboard's golden is an SV behavioral model that predicts C from the *monitored* A and B tiles. The same matmul is independently implemented and unit-tested three more ways — `ref/python/golden.py` (NumPy), `ref/python/systolic_sim.py` (cycle-accurate), and `ref/cpp/matmul_ref.cpp` (C++) — and cross-checked against each other (`ref/cpp/crosscheck.py`). Because the references agree, a scoreboard mismatch points at the RTL, not the model.
+
+**Checks (three, independent):** end-of-tile data compare against the golden; a latency window per tile; and AXI4-Stream protocol checks (valid/ready legality, TLAST placement) independent of data correctness.
+
+**Coverage model** (see [`docs/verification_plan.md`](docs/verification_plan.md) for the full plan and traceability matrix): operand range per A/B (CP1), result magnitude (CP2), output backpressure (CP3), tile spacing (CP4), CSR access (CP5), plus the `A_range × B_range` and `backpressure × tile_spacing` crosses. Bins are curated — unreachable/illegal combinations are excluded so the percentage reflects intent, not padding.
 
 ```
-              ┌─────────────────────────────────────────┐
-              │            AXI4-Lite CSR                │
-              │  (start, status, M/N/K, base addrs)     │
-              └────────────┬────────────────────────────┘
-                           │
-  AXI4-Stream A  ────►  ┌──┴────────────────────────┐  ────► AXI4-Stream C
-  (activations)         │                           │       (results)
-                        │   N × N PE grid           │
-  AXI4-Stream B  ────►  │   (INT8 MAC, skew regs)   │
-  (weights)             │                           │
-                        └───────────────────────────┘
+                       env
+   ┌──────────────┬──────────────┬──────────────┬───────────────┐
+ axis_agent A   axis_agent B   axis_agent C    axil_agent (CSR)
+ drive+monitor  drive+monitor  monitor +        drive+monitor
+                               TREADY responder
+   └──────────────┴──────┬───────┴──────────────┴───────────────┘
+                         ▼
+                   scoreboard  ── SV golden matmul ── compare C
+                         │
+                   coverage collector (manual hit-counter bins)
 ```
 
-### 2.2 Design Source Flow
+The environment lives in a single package, `tb/uvm/systolic_uvm_pkg.sv`. Two top levels share it: `tb_top` (full DUT, start issued via a real CSR write) and `tb_ctrl` (controller-level bring-up). The agent/scoreboard structure is reused from a prior `AXI_RAM_Verification` UVM project; the AXI4-Lite agent adapts that full-AXI4 environment to Lite single transfers.
 
-```
-  Vitis HLS C++  ──►  Synthesized Verilog (DUT)
-       │
-       └────────────►  C++ behavioral reference (compiled into DPI-C lib)
-```
+A **directed-test layer** (`tb/tb_*.sv`, with stimulus generated by `tb/generate_stimulus.py` and `tb/gen_controller_vectors.py`) brought up each block — PE, array, controller, CSR — before the UVM environment went on top.
 
-Both the synthesizable RTL and the untimed C++ reference are generated from the same algorithmic description. A second independent reference is written in NumPy to catch errors that might be common to the HLS C++ source.
+## 4. Results
 
-### 2.3 Verification Environment
+| Metric | Result |
+| ------ | ------ |
+| Functional coverage | **100%** (CP1–CP5, both crosses) |
+| Code coverage (DUT RTL) | line **97.1%** (33/34), branch 93.8%, expr 94.3%, toggle 92.1% |
+| Regression | **1,500 runs** (3 tests × 500 seeds), **0 failures, 0 vacuous passes** |
+| Multi-tile scenario run | 36 tiles, 36 checked, **0 mismatches** |
 
-```
-            ┌──────────────────────────────────────────────┐
-            │                UVM Testbench                 │
-            │                                              │
-            │   ┌──────────┐   ┌──────────┐   ┌─────────┐  │
-            │   │  Driver  │   │ Monitor  │   │Sequencer│  │
-            │   │  (AXIS)  │   │  (AXIS)  │   │         │  │
-            │   └────┬─────┘   └────┬─────┘   └─────────┘  │
-            │        │              │                      │
-            │        ▼              ▼                      │
-            │     ┌──────────────────────┐   ┌──────────┐  │
-            │     │      DUT (RTL)       │──►│Scoreboard│  │
-            │     └──────────────────────┘   │          │  │
-            │                                │ ◄── DPI-C│  │
-            │                                │   C++ ref│  │
-            │                                └──────────┘  │
-            └──────────────────────────────────────────────┘
-                              │
-                              ▼
-                  ┌────────────────────────┐
-                  │ NumPy golden model     │
-                  │ (offline cross-check)  │
-                  └────────────────────────┘
-```
+Code-coverage gaps are waived with rationale, not forced: the `$warning` TLAST path and the `ifndef SYNTHESIS` block, the unreachable `default` FSM arm, the constant `bresp`/`rresp` = OKAY, the tied-off overflow path, and the unused IRQ path. Verilator does not auto-extract FSM state/transition coverage on this design, so case-arm branch coverage stands in for it.
 
-Independent verification axes:
-
-| Axis                 | Tool / Technique                              | What it catches                          |
-|----------------------|-----------------------------------------------|------------------------------------------|
-| Dynamic, RTL         | UVM + constrained-random + functional coverage| Functional bugs across the input space   |
-| Reference comparison | DPI-C C++ + NumPy                             | Spec-vs-RTL divergence                   |
-| Assertions           | SVA (concurrent + immediate)                  | Protocol violations, internal invariants |
-| Formal               | SymbiYosys + SBY scripts                      | Control FSM correctness, deadlock freedom|
-| Gate-level           | Post-synth netlist + SDF back-annotation      | X-propagation, hold/setup-sensitive bugs |
-
-## 3. Target Deliverables
-
-By the time this repo is complete, it will contain:
-
-- [ ] Synthesizable RTL for the `N × N` INT8 systolic array, generated from Vitis HLS.
-- [ ] AXI4-Stream and AXI4-Lite UVM agents (reusable, parameterized).
-- [ ] UVM environment with virtual sequencer, scoreboard, and config DB plumbing.
-- [ ] DPI-C C++ reference model linked into the testbench.
-- [ ] Standalone NumPy golden model with a published reference vector set.
-- [ ] Functional coverage model with target ≥ 95% closure.
-- [ ] ≥ 20 SVA assertions covering AXI handshake and internal invariants.
-- [ ] SymbiYosys formal flow targeting the CSR + control FSM, with `prove` and `cover` modes.
-- [ ] Gate-level simulation script with SDF back-annotation against a synthesized netlist.
-- [ ] GitHub Actions CI: lint → smoke test → regression → coverage report.
-- [ ] Verification plan (`docs/vplan.md`) and bug log (`docs/bugs.md`).
-
-## 4. Repository Layout *(planned)*
+## 5. Repository layout
 
 ```
 systolic_array_dv/
-├── README.md
-├── docs/
-│   ├── vplan.md              # Verification plan
-│   ├── arch.md               # Microarchitecture notes
-│   └── bugs.md               # Running bug log (real engineers keep these)
-├── hls/
-│   ├── src/                  # Vitis HLS C++ source
-│   └── tcl/                  # HLS synthesis scripts
-├── rtl/                      # Generated + hand-written Verilog
-├── tb/
-│   ├── agents/               # AXIS, AXI-Lite UVM agents
-│   ├── env/                  # UVM env, scoreboard, coverage
-│   ├── tests/                # UVM tests
-│   └── seq/                  # Sequence library
-├── ref/
-│   ├── cpp/                  # DPI-C reference
-│   └── python/               # NumPy golden model
-├── formal/                   # SymbiYosys properties and .sby files
-├── gls/                      # Gate-level sim scripts + SDF flow
-├── sim/                      # Makefile / run scripts (Verilator + commercial)
-└── .github/workflows/        # CI
+├── rtl/                        DUT
+│   ├── pe.sv  systolic_array.sv  controller.sv  csr.sv  systolic_top.sv
+│   └── controller.sby          formal config (control-plane)
+├── tb/                         directed bring-up testbenches + stimulus gen
+│   ├── tb_controller.sv  tb_csr.sv  tb_systolic_array.sv  tb_systolic_top.sv
+│   ├── generate_stimulus.py  gen_controller_vectors.py
+│   ├── stimulus.txt  controller_vectors.txt
+│   └── uvm/                    UVM environment
+│       ├── systolic_uvm_pkg.sv     env, agents, scoreboard, coverage
+│       ├── axis_if.sv  axil_if.sv  ctrl_if.sv
+│       ├── tb_top.sv  tb_ctrl.sv   two top levels, shared package
+│       ├── makefile                one build, runtime test selection
+│       ├── coverage.vlt            code-coverage scoping (DUT RTL only)
+│       └── regression/             seeded regression framework (stdlib only)
+│           └── regress.py  log_parser.py  cov_parser.py
+├── ref/                        cross-validated reference models
+│   ├── python/  golden.py (NumPy)  systolic_sim.py (cycle-accurate)  + tests
+│   └── cpp/     matmul_ref.{cpp,h}  crosscheck.py  + test
+└── docs/        verification_plan.md  spec.md  ai_workflow.md  bugs.md  block_diagram.svg
 ```
 
-## 5. Roadmap
+## 6. Build & run
 
-| Phase | Scope                                                       | Status   |
-|-------|-------------------------------------------------------------|----------|
-| 0     | Repo skeleton, README, architecture decisions               | 🟡 In progress |
-| 1     | HLS C++ source + initial RTL generation                     | ⚪ Not started |
-| 2     | AXI4-Stream + AXI4-Lite UVM agents                          | ⚪ Not started |
-| 3     | NumPy golden model + DPI-C reference                        | ⚪ Not started |
-| 4     | UVM env, base test, scoreboard, smoke regression            | ⚪ Not started |
-| 5     | Functional coverage model + coverage closure                | ⚪ Not started |
-| 6     | SVA assertion suite                                         | ⚪ Not started |
-| 7     | SymbiYosys formal flow on control logic                     | ⚪ Not started |
-| 8     | Synthesis + SDF back-annotated GLS                          | ⚪ Not started |
-| 9     | GitHub Actions CI + final documentation                     | ⚪ Not started |
+**Prerequisites:** Verilator 5.048+, a UVM-core source tree, Python 3 (stdlib only — no packages).
 
-## 6. Tooling *(planned)*
-
-- **HLS:** Vitis HLS *(version TBD)*
-- **Simulation:** Verilator (open-source CI) + a commercial simulator for UVM *(TBD: Questa / Xcelium / VCS)*
-- **Formal:** SymbiYosys (Yosys + Z3 / Boolector)
-- **Synthesis:** Yosys (open) and/or Vivado for GLS netlist
-- **CI:** GitHub Actions
-
-## 7. How to Build & Run
-
-*Instructions will be added as each phase lands.* For now:
+Set `UVM_SRC` to your UVM-core `src/` directory (or pass it per invocation). All UVM commands run from `tb/uvm/`:
 
 ```bash
-git clone https://github.com/<user>/systolic_array_dv.git
-cd systolic_array_dv
-# Build/run instructions TBD
+cd tb/uvm
+
+make top_tile_test    UVM_SRC=/path/to/uvm-core/src   # one tile, full DUT (CSR-started)
+make multi_tile_test  UVM_SRC=...                      # full scenario suite (36 tiles)
+make single_tile_test UVM_SRC=...                      # controller-level bring-up
+make multi_tile_test  UVM_SRC=... DBG=1                # verbose trace
+make coverage         UVM_SRC=...                      # code-coverage build + report
+make clean
+
+python3 regression/regress.py                          # seeded multi-test regression
 ```
 
-## 8. References
+The reference models build and self-test independently:
 
-*To be filled in:*
-- TPU paper (Jouppi et al., 2017)
-- Vitis HLS user guide
-- SymbiYosys docs
-- AXI4-Stream / AXI4-Lite specs
+```bash
+cd ref/cpp && make && ./test_matmul_ref      # C++ reference + unit test
+python3 ref/python/test_golden.py            # NumPy golden test
+python3 ref/python/test_systolic_sim.py      # cycle-accurate sim test
+```
 
-## 9. Author
+**A note on warnings:** under the required `+define+UVM_NO_DPI`, UVM's IEEE-1800.2 component-name validator emits spurious `UVM/COMP/NAME` warnings (54 on the controller binary, 74 on the top). They are benign and elaboration-only; the makefile filters them from normal output. This is documented rather than suppressed in source.
+
+## 7. Formal track
+
+Control-plane properties are authored in `rtl/controller.sv` under `` `ifdef FORMAL `` (config in `rtl/controller.sby`): FSM state and counter-bound invariants, reset behaviour, and the producer/consumer guarantee that entering `COMPUTE` implies B has been fully received — plus `cover` properties proving every FSM phase is reachable (guarding against vacuous assertions). The 64-MAC datapath is deliberately out of scope for formal (intractable for a solver and already covered dynamically).
+
+**Proof status:** the properties are written but not yet proven, because the local open-source flow lacks a SystemVerilog-capable yosys frontend — the native frontend can't parse the design's unpacked-array ports, and sv2v converts the RTL but strips the assertions. The path to closing this is a yosys with `read_systemverilog` (OSS CAD Suite), which reads the original `controller.sv` and its assertions directly.
+
+## 8. Scope boundaries
+
+Explicitly **out of scope**, by design decision rather than omission:
+
+- **Autonomous error detection / error-injection** — the DUT aborts on a software command (`soft_reset`), not on hardware-detected errors. With no detection feature, an error-injection sequence would have nothing to verify; adding half-baked detection RTL was declined to keep every claimed feature fully verified.
+- **DPI-C scoreboard reference** — the SV golden is the live reference; importing the proven C++ model directly via DPI-C is future work.
+- **Overflow detection** — impossible for the 8×8 INT8 case; the status bit is tied off.
+- **K-tiling, bias/activation, multiple precisions, sparsity** — not in the datapath.
+- **Mid-stream input backpressure recovery** — backpressure is handled at tile granularity.
+
+## 9. Documentation
+
+- [`docs/verification_plan.md`](docs/verification_plan.md) — full vplan: feature/coverage traceability, checking strategy, closure criteria.
+- [`docs/spec.md`](docs/spec.md) — DUT specification.
+- [`docs/ai_workflow.md`](docs/ai_workflow.md) — development process and how AI tooling was used.
+- [`docs/bugs.md`](docs/bugs.md) — bug log (the two testbench bugs the regression and golden caught).
+- [`docs/block_diagram.svg`](docs/block_diagram.svg) — DUT block diagram.
+
+## 10. Author
 
 **Jaishyam Reddy Reddivari** — MS Computer Engineering, Syracuse University. Boston, MA.
 Open to entry-level DV / ASIC verification roles in the US.
 
-## 10. License
+## License
 
-*TBD — MIT or Apache 2.0.*
+MIT (add a `LICENSE` file to finalize).
