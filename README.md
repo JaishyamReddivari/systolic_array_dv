@@ -178,4 +178,4 @@ Open to entry-level DV / ASIC verification roles in the US.
 
 ## License
 
-MIT (add a `LICENSE` file to finalize).
+MIT - see [LICENSE](License).
