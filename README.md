@@ -178,4 +178,4 @@ Open to entry-level DV / ASIC verification roles in the US.
 
 ## License
 
-MIT - see [LICENSE](License).
+MIT — see [LICENSE](https://github.com/JaishyamReddivari/systolic_array_dv/blob/main/LICENSE).
