@@ -115,7 +115,7 @@ systolic_array_dv/
 ├── ref/                        cross-validated reference models
 │   ├── python/  golden.py (NumPy)  systolic_sim.py (cycle-accurate)  + tests
 │   └── cpp/     matmul_ref.{cpp,h}  crosscheck.py  + test
-└── docs/        verification_plan.md  spec.md  ai_workflow.md  bugs.md  block_diagram.svg
+└── docs/        verification_plan.md  spec.md  ai_workflow.md  bugs.md  block_diagram.svg regression_report.json
 ```
 
 ## 6. Build & run
