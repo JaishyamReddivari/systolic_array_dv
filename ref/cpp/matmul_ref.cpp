@@ -1,48 +1,28 @@
 // matmul_ref.cpp
 //
-// Implementation of the INT8 matmul reference. See matmul_ref.h for the
-// contract. Mirrors ref/python/golden.py numerically.
-
+// INT8 matmul reference. See matmul_ref.h for the contract.
+// Numerically mirrors ref/python/golden.py.
 #include "matmul_ref.h"
-
 void matmul_int8(const int8_t* A, const int8_t* B, int32_t* C, int N) {
-    // Three nested loops -- the textbook GEMM structure.
-    //   r : output row    (row of A, row of C)
-    //   c : output column (column of B, column of C)
-    //   k : inner index   (column of A, row of B) -- the dimension summed over
+    // r = output row, c = output column, k = summed inner index (col of A / row of B).
     for (int r = 0; r < N; ++r) {
         for (int c = 0; c < N; ++c) {
-
-            // Accumulator MUST be int32. This mirrors the hardware's INT32
-            // accumulator (spec section 6.1) and golden.py's int32 dtype.
-            // If this were int8 or int16 it would overflow: worst case is
-            // 8 * (-128 * -128) = 131072, which exceeds int16's 32767 limit.
+            // Accumulator must be int32 to match the hardware's INT32 accumulator
+            // (spec 6.1) and golden.py. int16 would overflow: worst case
+            // 8 * (-128 * -128) = 131072 > int16's 32767.
             int32_t acc = 0;
-
             for (int k = 0; k < N; ++k) {
-                // A[r][k] in row-major flattening is A[r*N + k]. Same for B.
                 int8_t a = A[r * N + k];
                 int8_t b = B[k * N + c];
-
-                // The multiply. SUBTLE BUT IMPORTANT:
-                // In C++, int8_t * int8_t does NOT produce an int8_t. Both
-                // operands are first promoted to `int` (the "usual arithmetic
-                // conversions"), so the multiply happens in (at least) 32-bit
-                // int space. That is exactly what we want -- it prevents the
-                // product from overflowing, matching how golden.py casts to
-                // int32 before multiplying.
-                //
-                // We write the cast to int32_t explicitly so the intent is
-                // visible and the behavior is identical on every compiler,
-                // rather than relying on implicit promotion being "wide enough".
+                // Cast to int32 before multiplying. int8 * int8 already promotes
+                // both operands to int (usual arithmetic conversions), so the
+                // product can't overflow -- the explicit widening just makes the
+                // intent clear and the behavior identical across compilers,
+                // matching golden.py casting to int32 first.
                 int32_t product = static_cast<int32_t>(a) * static_cast<int32_t>(b);
-
-                // Accumulate in int32. Plain two's-complement addition --
-                // no saturation, no clamping. Matches NumPy int32 semantics.
+                // Plain two's-complement add: no saturation, matching NumPy int32.
                 acc += product;
             }
-
-            // Store the finished dot product. C[r][c] -> C[r*N + c].
             C[r * N + c] = acc;
         }
     }
