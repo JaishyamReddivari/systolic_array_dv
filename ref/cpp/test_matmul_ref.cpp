@@ -1,15 +1,12 @@
 // test_matmul_ref.cpp
 //
 // Standalone test harness for the C++ reference model.
-//
-// Two modes:
-//   1. Self-test (default, no args): runs built-in cases and checks them.
-//   2. Vector mode (--vectors <file>): reads input matrices from a file,
-//      writes computed outputs to stdout. Used to cross-check against the
-//      NumPy models on IDENTICAL inputs (next task).
+//   - Self-test (default, no args): runs built-in cases and checks them.
+//   - Vector mode (--vectors <file>): reads A,B from a file, writes C to stdout,
+//     so the Python cross-check can feed identical inputs to the NumPy models.
 //
 // Build:   g++ -std=c++17 -O2 matmul_ref.cpp test_matmul_ref.cpp -o test_matmul
-// Run:     ./test_matmul              (self-test)
+// Run:     ./test_matmul                    (self-test)
 //          ./test_matmul --vectors in.txt   (vector mode)
 
 #include "matmul_ref.h"
@@ -23,11 +20,6 @@
 
 static const int N = 8;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// Print an N x N int32 matrix, one row per line, space-separated.
 static void print_matrix(const int32_t* M) {
     for (int r = 0; r < N; ++r) {
         for (int c = 0; c < N; ++c) {
@@ -38,16 +30,10 @@ static void print_matrix(const int32_t* M) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Self-test cases
-// ---------------------------------------------------------------------------
-
-// Returns true if all self-tests pass.
 static bool run_self_tests() {
     bool all_ok = true;
 
-    // --- Test 1: hand-computed 2x2 example, padded into the top-left of 8x8 ---
-    // Same example as the Python tests:
+    // Test 1: hand-computed 2x2 (same as the Python tests), padded into 8x8.
     //   [[1,2],[3,4]] * [[5,6],[7,8]] = [[19,22],[43,50]]
     {
         int8_t A[N * N] = {0};
@@ -71,10 +57,8 @@ static bool run_self_tests() {
         all_ok &= ok;
     }
 
-    // --- Test 2: extreme values, all -128 ---
-    // Each output = 8 * (-128 * -128) = 8 * 16384 = 131072.
-    // This is the key test that the int32 path is correct and nothing
-    // silently overflowed to a narrower type.
+    // Test 2: all -128. Each output = 8 * (-128 * -128) = 131072 -- the case
+    // that catches a silent overflow into a narrower-than-int32 type.
     {
         int8_t A[N * N];
         int8_t B[N * N];
@@ -93,15 +77,14 @@ static bool run_self_tests() {
         all_ok &= ok;
     }
 
-    // --- Test 3: identity * M = M ---
-    // Sanity check on indexing/orientation. If A is identity, C must equal B.
+    // Test 3: identity * M = M -- sanity check on indexing/orientation.
     {
         int8_t A[N * N] = {0};
         int8_t B[N * N];
         int32_t C[N * N];
         std::memset(C, 0, sizeof(C));
-        for (int i = 0; i < N; ++i) A[i * N + i] = 1;       // identity
-        for (int i = 0; i < N * N; ++i) B[i] = (int8_t)(i - 30);  // arbitrary
+        for (int i = 0; i < N; ++i) A[i * N + i] = 1;
+        for (int i = 0; i < N * N; ++i) B[i] = (int8_t)(i - 30);
 
         matmul_int8(A, B, C, N);
 
@@ -116,18 +99,8 @@ static bool run_self_tests() {
     return all_ok;
 }
 
-// ---------------------------------------------------------------------------
-// Vector mode: read A and B from a file, compute C, print C.
-// ---------------------------------------------------------------------------
-//
-// File format (plain text):
-//   - 64 integers for A (row-major), whitespace-separated
-//   - 64 integers for B (row-major), whitespace-separated
-// Output: 64 integers for C (row-major), 8 per line.
-//
-// This lets the Python cross-check script generate random A,B, feed the SAME
-// numbers to this program, and compare C against the NumPy result.
-
+// Vector mode file format: 64 ints for A (row-major), then 64 for B; output is
+// 64 ints for C, 8 per line. Lets the Python cross-check compare on identical inputs.
 static int run_vector_mode(const char* path) {
     std::ifstream in(path);
     if (!in) {
@@ -140,9 +113,8 @@ static int run_vector_mode(const char* path) {
     int32_t C[N * N];
     std::memset(C, 0, sizeof(C));
 
-    // Read into a temporary int (file holds decimal ints like -128..127),
-    // then narrow to int8_t. Reading directly into int8_t would parse as a
-    // character on many stream implementations, so we go via int.
+    // Read via int, then narrow: reading directly into int8_t parses as a
+    // character on many stream implementations.
     for (int i = 0; i < N * N; ++i) {
         int v;
         if (!(in >> v)) { std::cerr << "ERROR: not enough values for A\n"; return 1; }
@@ -159,16 +131,11 @@ static int run_vector_mode(const char* path) {
     return 0;
 }
 
-// ---------------------------------------------------------------------------
-// main
-// ---------------------------------------------------------------------------
-
 int main(int argc, char** argv) {
     if (argc >= 3 && std::strcmp(argv[1], "--vectors") == 0) {
         return run_vector_mode(argv[2]);
     }
 
-    // Default: self-test.
     bool ok = run_self_tests();
     std::cout << '\n' << (ok ? "ALL TESTS PASSED" : "SOME TESTS FAILED") << '\n';
     return ok ? 0 : 1;
