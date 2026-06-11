@@ -18,7 +18,7 @@ An 8×8 INT8 systolic-array accelerator — the compute primitive at the heart o
 
 What it demonstrates:
 
-- A UVM environment with constrained-random stimulus, a self-checking scoreboard, and a manually-built functional-coverage model — running end to end on **Verilator**, which most people assume can't host UVM.
+- A UVM environment with constrained-random stimulus, a self-checking scoreboard, and a manually-built functional-coverage model — running end to end on **Verilator**.
 - **Three independent, cross-validated reference models** (NumPy, a cycle-accurate simulator, and C++) so that a scoreboard mismatch isolates to the RTL rather than to an ambiguous golden.
 - **Coverage-driven closure**: 100% functional coverage on a curated bin set, 97.1% line coverage with every gap waived and explained.
 - A **500-seed regression** with a vacuous-pass guard, driven by a pure-stdlib Python framework.
